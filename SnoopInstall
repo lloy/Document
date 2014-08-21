@@ -1,0 +1,203 @@
+
+	说明文档：
+	version 0.1
+
+
+index
+	---土城抓包机器 部署说明
+		--机器TC-Snooper说明(抓包机器)
+		--机器TC-IpCount（流量统计机器）
+	---机器TC-Snooper部署
+		--基础安装
+		--igb千兆网卡模块替换
+		--ixgbe 万兆网卡模块替换
+		--pf_ring模块 安装
+		--pf_ring 用户空间lib库安装
+		--libpcap库替换安装
+		--pmacct安装
+		--mysql 设置
+		--Job 模块安装
+		--开机启动设置
+		--重新启动查看模块是否启动
+	---TC-IpCount机器部署
+		--基础
+		--IpCount安装
+		--Web安装
+		--开机启动
+
+
+一、土城抓包机器 部署说明
+
+1. 机器TC-Snooper说明(抓包机器)
+系统：
+	Distributor ID:	Ubuntu
+	Description:	Ubuntu 12.04.2 LTS
+	Release:	12.04
+	Codename:	precise
+PF_RING版本：
+	version： 5.6.0
+pmacct版本：
+	version：1.5.0rc2
+
+抓包统计：
+	a. Job 
+		|-- job.py
+		|-- remotion.py
+		|-- settings.py
+
+
+2. TC-IpCount机器（流量统计机器）		
+
+系统：
+	Distributor ID:	Ubuntu
+	Description:	Ubuntu 12.04.2 LTS
+	Release:	12.04
+	Codename:	precise
+
+流量统计：	
+	a. Ipcount和web 
+		1). Ipcount:
+			|-- check_subnet.py
+			|-- ipcount.py
+			|-- mongodb.conf
+			|-- rebuild.py
+			|-- settings.py
+			`-- t1.py
+		2). Web:
+			|-- index.html
+			`-- wsgi
+    				|-- main.wsgi
+    				`-- none.png
+
+二、  机器TC-Snooper部署
+
+0. 基础安装：
+	源处理
+	sudo apt-get remove `dpkg --get-selections | grep i386 | awk '{print $1}'`
+	/etc/dpkg/dpkg.cfg.d/multiarch 里用#屏蔽唯一一行
+	主要安装一些编译工具和下载一些安装包
+	a. sudo apt-get install gcc g++ automake make autoconf python-pymongo python-mysqldb -y
+	b. sudo apt-get install mysql-server mysql-client libmysqlclient-dev -y 数据库的用户名/秘密： root/cds-china
+	c. mkdir Install;cd Install
+	d. wget http://www.pmacct.net/pmacct-1.5.0rc2.tar.gz;tar xvf pmacct-1.5.0rc2.tar.gz
+	e. wget http://sourceforge.net/projects/ntop/files/PF_RING/Old/PF_RING-5.6.0.tar.gz/download;tar xvf download
+
+1.igb千兆网卡模块替换
+	使用pf_ring中的igb模块替换Ubuntu原有的igb模块，做法如下:
+		a. cd PF_RING-5.6.0
+		b. cd drivers/PF_RING_aware/intel/igb/igb-4.1.2/src/;make;sudo make install
+
+2.ixgbe 万兆网卡模块替换
+	使用pf_ring中的ixgbe模块替换Ubuntu原有的igb模块，做法如下:
+		a. cd PF_RING-5.6.0
+		b. cd drivers/PF_RING_aware/intel/ixgbe/ixgbe-3.11.33/src/;make;sudo make install
+
+3.pf_ring模块 安装
+	a. cd PF_RING-5.6.0
+	b. cd kernel;make;sudo make install
+
+	查看/lib/modules/3.5.0-23-generic/kernel/net/pf_ring/pf_ring.ko 是否存在，存在则安装成功
+
+
+4.pf_ring 用户空间lib库安装
+	a. cd userland/lib
+	b. ./configure --prefix=/usr;make;sudo make install
+
+	查看下面文件存在则安装成功
+		/usr/lib/libpfring.a
+		/usr/lib/libpfring.so
+
+5. libpcap库替换安装
+	a. cd PF_RING-5.6.0
+	b. cd userland/libpcap-1.1.1-ring；./configure --prefix=/usr;make;sudo make install
+	
+	查看下面文件存在则安装成功：
+		libpcap.a
+		libpcap.so
+		libpcap.so.1
+		libpcap.so.1.1.1
+
+6. pmacct安装
+	a. cd pmacct-1.5.0rc2
+	b. ./configure --prefix=/usr/local --enable-mysql --with-mysql-libs=/usr/lib/x86_64-linux-gnu/ --prefix=/usr/local/pmacct/;make;sudo make install
+	c. echo "export PATH=$PATH:/usr/local/pmacct/bin:/usr/local/pmacct/sbin" >> ~/.bashrc
+	d. source ~/.bashrc
+	e. 将配置文件和启动脚步处理：
+		sudo mkdir /etc/pmacctd;cp Install/Job/etc/pmacctd/* /etc/pmacctd
+		sudo cp Install/Job/etc/init.d/pmacctd /etc/init.d/;sudo chmod +x /etc/init.d/pmacctd
+	
+7. mysql 设置
+	a. cd pmacct-1.5.0rc2/sql
+	b. mysql -u root -p < pmacct-create-db_v1.mysql
+	c. mysql -u root -p < pmacct-grant-db.mysql
+
+
+8. Job 模块安装
+	Job 安装（在抓包机器上部署）：
+		
+		将Job目录的文件复制到/usr/local/pmacct/bin/，如下：
+			sudo cp -fv Install/Job/* /usr/local/pmacct/bin/
+
+9. 开机启动设置
+	a. igb, ixgbe, pf_ring 模块开机自动加载：
+		在/etc/modules文件里加入3行：
+			igb
+			ixgbe
+			pf_ring
+	b. pmacctd 启动
+		update-rc.d pmacctd defaults
+		也可以通过执行行脚步 /etc/init.d/pmacctd start | stop
+		
+	c. Job开机启动
+		在/etc/crontab 加入一行：
+			*/1 *	* * *	root	python /usr/local/pmacct/bin/job.py
+		在/etc/rc.local文件中加入一行：
+			crontab /etc/crontab
+
+10.重新启动查看模块是否启动
+	a. igb: lsmod | grep igb
+	b. ixgbe: lsmod|grep ixgbe
+	c. pf_ring: lsmod|grep pf_ring
+	d. pmacctd: ps aux|grep pmacctd or ls /var/run/pmacctd*
+	e. sudo crontab -l -u root
+
+三 TC-IpCount机器部署
+	
+0.基础
+	源处理
+	sudo apt-get remove `dpkg --get-selections | grep i386 | awk '{print $1}'`
+	/etc/dpkg/dpkg.cfg.d/multiarch 里用#屏蔽唯一一行
+	
+	下载工具包：
+	sudo apt-get install gcc g++ automake make autoconf -y
+	sudo apt-get install chkconfig -y	
+	sudo apt-get install python-pymongo mongodb-server python-mysqldb -y
+	sudo apt-get install python-rrdtool -y 
+	sudo apt-get install python-pip -y
+	sudo pip install ipaddress 
+
+	设置一下local的环境变量：
+	export LC_ALL="C"
+
+1.IpCount安装
+	sudo mkdir /usr/local/cloudcount
+	将IpCount目录的文件复制到/usr/local/pmacct/bin/，如下：
+		sudo cp -fv Install/IpCount/* /usr/local/cloudcount/
+
+2. Web安装
+	sudo mkdir /var/www
+	sudo cp -rv Install/Web/index.html /var/www/
+	sudo cp -rfv Install/Web/wsgi /var/www/
+
+
+3. 开机启动
+	a. Ipcount自动启动 
+		在/etc/crontab 加入一行：
+			*/5 *	* * *	root	python /usr/local/cloudcount/ipcount.py
+		在/etc/rc.local文件中加入一行：
+			crontab /etc/crontab
+	b. mongodb启动
+		sudo update-rc.d mongodb defaults 
+		通过 chkconfig --list | grep mongo 查看mongodb的启动方式
+
+		
