@@ -1,0 +1,313 @@
+\documentclass[10pt]{article}
+\usepackage[colorlinks,linkcolor=black]{hyperref}
+\usepackage[infoshow]{tabularx}
+\usepackage{times}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{indentfirst}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{zhfontcfg}
+\usepackage{color}
+% \usepackage[dvips]{color}
+\newcommand{\itab}[1]{\hspace{1em}\rlap{#1}}
+\newcommand{\tab}[1]{\hspace{.2\textwidth}\rlap{#1}}
+
+\date{\today}
+
+\lstset{
+  language=Python,                % choose the language of the code
+  basicstyle=\footnotesize,       % the size of the fonts that are used for the code
+  numbers=left,                   % where to put the line-numbers
+  numberstyle=\footnotesize,      % the size of the fonts that are used for the line-numbers
+  stepnumber=1,                   % the step between two line-numbers. If it is 1 each line will be numbered
+  numbersep=5pt,                  % how far the line-numbers are from the code
+  backgroundcolor=\color{white},  % choose the background color. You must add \usepackage{color}
+  showspaces=false,               % show spaces adding particular underscores
+  showstringspaces=false,         % underline spaces within strings
+  showtabs=false,                 % show tabs within strings adding particular underscores
+  frame=single,                   % adds a frame around the code
+  tabsize=2,              % sets default tabsize to 2 spaces
+  captionpos=b,                   % sets the caption-position to bottom
+  breaklines=true,        % sets automatic line breaking
+  breakatwhitespace=false,    % sets if automatic breaks should only happen at whitespace
+%  escapeinside={\%}{)}          % if you want to add a comment within your code
+  escapeinside={} 
+}
+
+\setcounter{tocdepth}{3}
+
+\setlength{\topmargin}{0cm}
+
+%opening
+\title{流量部署说明文档 }
+\author{Hardy.zheng\thanks{首都在线 version 0.1}}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{土城抓包机器 部署说明}
+\subsection{机器TC-Snooper说明(抓包机器)}
+\begin{enumerate}
+\item 系统
+\begin{center}
+\begin{tabular}{|p{10cm}|}
+\hline
+\hei{Distributor ID}:\tab {Ubuntu} \\
+\hei{Description}:	\tab {Ubuntu 12.04.2 LTS}\\
+\hei{Release}:	\tab {12.04}\\
+\hei{Codename}:	\tab {precise}\\
+\hline
+\end{tabular}
+\end{center}
+	
+\item PF\_RING版本\\
+    \hei{version:} \tab {5.6.0}
+\item pmacct版本 \\
+    \hei{version:}\tab {1.5.0rc2}
+
+\item 抓包统计 \\
+Job模块下的文件： 
+\begin{itemize}
+    \item[*] job.py
+    \item[*] remotion.py
+    \item[*] settings.py
+\end{itemize}
+\end{enumerate}
+
+\subsection{机器TC-IpCount（流量统计机器）}
+\subsubsection{ 系统}
+\begin{center}
+\begin{tabular}{|p{10cm}|}
+\hline
+\hei{Distributor ID}:\tab {Ubuntu} \\
+\hei{Description}:	\tab {Ubuntu 12.04.2 LTS}\\
+\hei{Release}:	\tab {12.04}\\
+\hei{Codename}:	\tab {precise}\\
+\hline
+\end{tabular}
+\end{center}
+	
+\subsubsection{流量统计模块}	
+\begin{enumerate}
+\item Ipcount模块文件
+\begin{itemize}
+    \item[*] check\_subnet.py
+    \item[*] ipcount.py
+    \item[*] mongodb.py 
+    \item[*] rebuild.py
+    \item[*] settings.py
+    \item[*] t1.py
+\end{itemize}
+\item Web 模块文件
+\begin{itemize}
+    \item[*] index.html
+    \begin{itemize}
+        \item[-] main.wsgi
+        \item[-] none.png
+    \end{itemize}
+\end{itemize}
+\end{enumerate}
+
+\newpage
+
+\section{机器TC-Snooper部署}
+\subsection{基础安装}
+\subsubsection{源处理}
+\begin{center}
+\begin{tabular}{|p{10cm}|}
+\hline
+\footnotesize {sudo apt-get remove :`{}dpkg -{}- get-selections | grep  i386 | awk '\{print \$1\}'`}
+\\\hline
+\end{tabular}
+\end{center}
+\itab{\hei{/etc/dpkg/dpkg.cfg.d/multiarch 里用\#屏蔽唯一一行}}
+\subsubsection{下载包}
+主要安装一些编译工具和下载一些安装包
+\begin{enumerate}
+    \item sudo apt-get install gcc g++ automake make autoconf python-pymongo python-mysqldb -y
+    \item sudo apt-get install mysql-server mysql-client libmysqlclient-dev -y 数据库的用户名/秘密： root/cds-china
+    \item mkdir Install;cd Install
+    \item wget http://www.pmacct.net/pmacct-1.5.0rc2.tar.gz;tar xvf pmacct-1.5.0rc2.tar.gz
+    \item wget http://sourceforge.net/projects/ntop/files/PF\_RING/Old/PF\_RING-5.6.0.tar.gz/download;tar xvf download
+\end{enumerate}
+
+\subsection{igb千兆网卡模块替换}
+使用pf\_ring中的igb模块替换Ubuntu原有的igb模块，做法如下:
+\begin{enumerate}
+    \item cd PF\_RING-5.6.0
+    \item cd drivers/PF\_RING\_aware/intel/igb/igb-4.1.2/src/;make;sudo make install
+\end{enumerate}
+\bigskip
+\subsection{ixgbe 万兆网卡模块替换}
+	使用pf\_ring中的ixgbe模块替换Ubuntu原有的igb模块，做法如下:
+    \begin{enumerate}
+		\item cd PF\_RING-5.6.0
+		\item cd drivers/PF\_RING\_aware/intel/ixgbe/ixgbe-3.11.33/src/;make;sudo make install
+    \end{enumerate}
+\bigskip
+\subsection{pf\_ring模块 安装}
+\begin{enumerate}
+	\item cd PF\_RING-5.6.0
+	\item cd kernel;make;sudo make install
+\end{enumerate}
+查看/lib/modules/3.5.0-23-generic/kernel/net/pf\_ring/pf\_ring.ko 是否存在，存在则安装成功
+\bigskip
+\subsection{pf\_ring 用户空间lib库安装}
+\begin{enumerate}
+    \item cd userland/lib
+    \item ./configure -{}-prefix=/usr;make;sudo make install
+    \end{enumerate}
+	查看下面文件存在则安装成功
+    \begin{itemize}
+        \item[*] /usr/lib/libpfring.a 
+        \item[*] /usr/lib/libpfring.so
+    \end{itemize}
+\bigskip
+\subsection{libpcap库替换安装}
+\begin{enumerate}
+    \item cd PF\_RING-5.6.0
+    \item cd userland/libpcap-1.1.1-ring；./configure -{}-prefix=/usr;make;sudo make install
+\end{enumerate}
+	查看下面文件存在则安装成功：
+    \begin{itemize}
+        \item[*] libpcap.a 
+        \item[*] libpcap.so 
+		\item[*] libpcap.so.1 
+		\item[*] libpcap.so.1.1.1 
+    \end{itemize}
+\bigskip
+\subsection{pmacct安装}
+\begin{enumerate}
+    \item cd pmacct-1.5.0rc2
+    \item  ./configure -{}-prefix=/usr/local -{}-enable-mysql -{}-with-mysql-libs=/usr/lib/x86\_64-linux-gnu/ -{}-prefix=/usr/local/pmacct/;make;sudo make install
+    % \item echo "export PATH=$PATH:/usr/local/pmacct/bin:/usr/local/pmacct/sbin" >> ~{}/.bashrc
+    % \item  source ~{}/.bashrc
+	\item 将配置文件和启动脚步处理：
+        \begin{itemize}
+            \item[*] sudo mkdir /etc/pmacctd;cp Install/Job/etc/pmacctd/* /etc/pmacctd
+            \item[*] sudo cp Install/Job/etc/init.d/pmacctd /etc/init.d/;sudo chmod +x /etc/init.d/pmacctd
+        \end{itemize}
+\end{enumerate}
+
+\bigskip
+\subsection{mysql 设置}
+\begin{enumerate}
+\item cd pmacct-1.5.0rc2/sql
+\item  mysql -u root -p < pmacct-create-db\_v1.mysql
+\item mysql -u root -p < pmacct-grant-db.mysql
+\end{enumerate}
+
+\bigskip
+\subsection{Job 模块安装}
+\hei{在抓包机器上部署}\\
+将Job目录的文件复制到/usr/local/pmacct/bin/，如下：\\
+
+\begin{center}
+\begin{tabular}{|p{10cm}|}
+\hline
+sudo cp -fv Install/Job/* /usr/local/pmacct/bin/
+\\\hline
+\end{tabular}
+\end{center}
+
+\bigskip
+\subsection{开机启动设置}
+\begin{enumerate}
+    \item igb, ixgbe, pf\_ring 模块开机自动加载：
+		在/etc/modules文件里加入3行：
+			igb
+			ixgbe
+			pf\_ring
+        \item pmacctd 启动
+		update-rc.d pmacctd defaults
+		也可以通过执行行脚步 /etc/init.d/pmacctd start | stop
+		
+    \item Job开机启动
+		在/etc/crontab 加入一行：
+			*/1 *	* * *	root	python /usr/local/pmacct/bin/job.py
+		在/etc/rc.local文件中加入一行：
+			crontab /etc/crontab
+        \end{enumerate}
+
+\bigskip
+\subsection{重新启动查看模块是否启动}
+\begin{enumerate}
+    \item igb: lsmod | grep igb
+    \item ixgbe: lsmod|grep ixgbe
+    \item pf\_ring: lsmod|grep pf\_ring
+    \item pmacctd: ps aux|grep pmacctd or ls /var/run/pmacctd*
+    \item sudo crontab -l -u root
+\end{enumerate}
+\newpage
+
+
+\section{TC-IpCount机器部署}
+\subsection{基础}
+\subsubsection{源处理}
+    sudo apt-get remove `dpkg -{}-get-selections | grep i386 | awk '\{print \$1\}'` \\
+/etc/dpkg/dpkg.cfg.d/multiarch 里用\#屏蔽唯一一行 \\
+\subsubsection{下载工具包}
+\begin{enumerate}
+	\item sudo apt-get install gcc g++ automake make autoconf -y
+	\item sudo apt-get install chkconfig -y	
+	\item sudo apt-get install python-pymongo mongodb-server python-mysqldb -y
+	\item sudo apt-get install python-rrdtool -y 
+	\item sudo apt-get install python-pip -y
+	\item sudo pip install ipaddress 
+\end{enumerate}
+
+\subsubsection{设置环境变量}
+export LC\_ALL="C" 
+\bigskip
+
+\subsection{IpCount安装}
+sudo mkdir /usr/local/cloudcount \\
+将IpCount目录的文件复制到/usr/local/pmacct/bin/，如下： \\
+
+\begin{center}
+\begin{tabular}{|p{10cm}|}
+\hline
+    sudo cp -fv Install/IpCount/* /usr/local/cloudcount/
+\\\hline
+\end{tabular}
+\end{center}
+
+\bigskip
+\subsection{Web安装}
+\begin{enumerate}
+
+    \item sudo mkdir /var/www
+    \item sudo cp -rv Install/Web/index.html /var/www/
+    \item sudo cp -rfv Install/Web/wsgi /var/www/
+\end{enumerate}
+
+
+\bigskip
+\subsection{开机启动}
+\subsubsection{Ipcount自动启动} 
+		在/etc/crontab 加入一行： \\
+			*/5 *	* * *	root	python /usr/local/cloudcount/ipcount.py\\
+		在/etc/rc.local文件中加入一行： \\
+			crontab /etc/crontab
+\subsubsection{mongodb启动}
+
+\begin{center}
+\begin{tabular}{|p{10cm}|}
+\hline
+		sudo update-rc.d mongodb defaults 
+\\\hline
+\end{tabular}
+\end{center}
+通过 chkconfig --list | grep mongo 查看mongodb的启动方式
+
+		
+\bigskip
+
+\bibliography{}
+\clearpage
+\end{document}
+
